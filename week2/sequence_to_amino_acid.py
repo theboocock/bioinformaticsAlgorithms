@@ -2,6 +2,21 @@
 #
 #
 from operator import mul
+import operator
+                     
+int_mass_table = {
+    'G':57, 'A':71, 'S':87, 'P':97,
+    'V':99, 'T':101, 'C':103, 'I':113,
+    'L':113, 'N':114, 'D':115, 'K':128,
+    'Q':128, 'E':129, 'M':131, 'H':137,
+    'F':147, 'R':157, 'Y':163, 'W':186}
+
+reduced_mass_table = {
+    'G':57, 'A':71, 'S':87, 'P':97,
+    'V':99, 'T':101, 'C':103,
+    'I':113, 'N':114, 'D':115, 'K':128,
+    'E':129, 'M':131, 'H':137,
+    'F':147, 'R':156, 'Y':163, 'W':186}
 gencode = {
     'AUA':'I', 'AUC':'I', 'AUU':'I', 'AUG':'M',
     'ACA':'T', 'ACC':'T', 'ACG':'T', 'ACU':'T',
@@ -19,6 +34,204 @@ gencode = {
     'UUC':'F', 'UUU':'F', 'UUA':'L', 'UUG':'L',
     'UAC':'Y', 'UAU':'Y', 'UAA':'*', 'UAG':'*',
     'UGC':'C', 'UGU':'C', 'UGA':'*', 'UGG':'W'}
+
+def get_cyclo_peptide_spectrum(peptide):
+    peptide = list(peptide)
+    peptide.remove(0)
+    cycl = [0]
+    for i, item in enumerate(peptide):
+        total = 0 
+        for j in range(i+1,i +1 + len(peptide)-1):
+            index = j % len(peptide)
+            total+= peptide[index]
+            cycl.append(total)
+    total = 0
+    for item in peptide:
+        total += item
+    cycl.append(total)
+    return cycl 
+    
+def score(peptide,spectrum):
+    count = 0
+    peptide = sorted(list(peptide))
+    spectrum = sorted(list(spectrum))
+    s_index = 0
+    p_index = 0
+    while(p_index< len(peptide) and s_index < len(spectrum)):
+        p = peptide[p_index]
+        s = spectrum[s_index]
+        if(p == s):
+            count +=1
+            p_index +=1
+            s_index +=1
+        elif (p > s):
+            s_index+=1
+        else:
+            p_index+=1
+    return count
+
+def cut(leader_beard,spectrum,N):
+    scores=[]
+    for leader in leader_beard:
+        scores.append(score(get_cyclo_peptide_spectrum(leader),spectrum))
+        
+    sorted_scores = sorted(zip(scores,leader_beard),key=lambda t:t[0],reverse=True)
+    first_score = sorted_scores[0][0]
+    resulting_leader_beard=[sorted_scores[0][1]]
+    for i in range(1,len(sorted_scores)):
+        current_score = sorted_scores[i][0]
+        if(current_score == first_score):
+            resulting_leader_beard.append(sorted_scores[i][1])
+        elif(i > N):
+            break
+        else:
+            resulting_leader_beard.append(sorted_scores[i][1])
+        first_score = current_score
+    return resulting_leader_beard 
+ 
+
+def leader_board_cyclopeptide_sequencing(spectrum,N):
+    leader_peptide = [0]
+    leader_beard = [[0]]
+    j= 0
+    while(len(leader_beard) > 0):
+        expand_peptides=list(leader_beard)
+        leader_beard = []
+        for item in expand_peptides:
+            for mass in reduced_mass_table.values():
+                t_start_pep=list(item)
+                t_start_pep.append(mass)
+                leader_beard.append(t_start_pep)
+        for i, peptide in enumerate(list(leader_beard)):
+            peptide_cyclo_spectrum = get_cyclo_peptide_spectrum(peptide)
+            if(peptide_cyclo_spectrum[len(peptide_cyclo_spectrum)-1] == spectrum[len(spectrum)-1]):
+                if(score(peptide_cyclo_spectrum,spectrum) > score(get_cyclo_peptide_spectrum(leader_peptide),spectrum)):
+                    leader_peptide = peptide
+            elif(peptide_cyclo_spectrum[len(peptide_cyclo_spectrum)-1] > spectrum[len(spectrum)-1]):
+                leader_beard.remove(peptide)
+        if(len(leader_beard) == 0):
+            break
+        leader_beard = cut(leader_beard,spectrum,N)
+    print('-'.join([str(o) for o in leader_peptide[1:]]))
+            
+# cyclopeptide sequencing 
+def read_spectrum(f):
+    with open(f,'r') as file_name:
+        spectrum = file_name.readlines()[0].strip()
+        return([int(o) for o in spectrum.split()])
+#
+# returns -1 when inconsistent
+# returns 0 when consistent
+# returns 1 when consistent and complete       
+
+def peptide_consistent(peptide,spectrum):
+    spectrum_length = len(spectrum)
+    spectrum = list(spectrum)
+    #remove the zero peptides
+    peptides_removed = 0
+    for i, first in enumerate(peptide):
+        total = 0
+        for j in range(i+1,len(peptide)):
+            total += peptide[j]
+            try:
+                spectrum.remove(total)
+                peptides_removed += 1
+            except ValueError:
+                return -1
+    #print(peptide)
+    #print(len(peptide))
+    #print((len(peptide)-1) * (len(peptide) - 2) +2)
+    #print(len(spectrum))
+    if(((len(peptide)-1) * (len(peptide) - 2) +2) == spectrum_length):
+        #print("wow")
+        return 1
+    return 0
+        
+def cyclopeptide_sequencing(spectrum):
+    peptides=[[0]]
+    while(len(peptides) > 0):
+            peptide = peptides.pop()
+            #print(peptide)
+            #print(spectrum)
+            for mass in reduced_mass_table.values():
+                temp_peptide = list(peptide)
+                temp_peptide.append(mass)
+                check_match =  peptide_consistent(temp_peptide,spectrum)
+                if(check_match == 1):
+                    print("-".join([str(o) for o in temp_peptide][1:]))
+                elif(check_match == 0):
+                    # add peptide to list
+                    peptides.append(temp_peptide)
+
+def open_amino_acid(f):
+    with open(f,'r') as file_name:
+        amino_acid_sequence=file_name.readlines()[0].strip() 
+        return amino_acid_sequence
+
+def get_mass(f):
+    with open(f,'r') as file_name:
+        mass_integer=int(file_name.readlines()[0].strip())
+        return(mass_integer)  
+
+coins = [1,2,3,4,5]
+big_map={}
+def get_peptide_mass_coins(n):
+    total = 0
+    #print(n)
+    if n == 0:
+        return 1
+    if n < 0:
+        return 0
+    for value in coins:
+        total += get_peptide_mass_coins(n-value)
+    return total
+def get_peptide_mass(n,depth):
+    total = 0
+    if n == 0:
+        return 1
+    if n < 0:
+        return 0
+    if n not in big_map:
+        for key,value in reduced_mass_table.items():
+            temp_answer = n -value
+            total += get_peptide_mass(temp_answer,depth+1)
+            if depth == 0:
+                print(get_peptide_mass(temp_answer,depth+1))
+                print(key)
+                print("====")
+        big_map[n] = total
+    else:
+            total = big_map[n]
+    return total
+def get_peptide_mass_rec(n):
+    total = 0
+    #print(n)
+    if n == 0:
+        return 1
+    if n < 0:
+        return 0
+    for key,value in reduced_mass_table.items():
+        total += get_peptide_mass_rec(n-value)
+    return total
+
+def recursive_peptides(get_mass):
+    return(get_peptide_mass(get_mass))
+
+def mass_table(amino_acid_string):
+    theoretical_spectrum=[]
+    theoretical_spectrum.append(0)
+    for i in range(len(amino_acid_string)):
+        ########3
+        temp_mass = int_mass_table[amino_acid_string[i]]
+        theoretical_spectrum.append(temp_mass)
+        for j in range(i + 1,i + len(amino_acid_string)-1):
+           index = j % len(amino_acid_string)
+           temp_mass += int_mass_table[amino_acid_string[index]]
+           theoretical_spectrum.append(temp_mass)
+    theoretical_spectrum.append(temp_mass + int_mass_table[amino_acid_string[(j+1) % len(amino_acid_string)]]) 
+    theoretical_spectrum = ' '.join([str(o) for o in sorted(theoretical_spectrum)])
+    #blah
+    return(theoretical_spectrum) 
 
 tyrocidine_B1 = 'VKLFPFNQY'
 def sequence_to_amino_acid(dna_string):
