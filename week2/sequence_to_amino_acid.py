@@ -3,7 +3,8 @@
 #
 from operator import mul
 import operator
-                     
+    
+from collections import OrderedDict                 
 int_mass_table = {
     'G':57, 'A':71, 'S':87, 'P':97,
     'V':99, 'T':101, 'C':103, 'I':113,
@@ -34,6 +35,96 @@ gencode = {
     'UUC':'F', 'UUU':'F', 'UUA':'L', 'UUG':'L',
     'UAC':'Y', 'UAU':'Y', 'UAA':'*', 'UAG':'*',
     'UGC':'C', 'UGU':'C', 'UGA':'*', 'UGG':'W'}
+
+def abs(a,b):
+    total =a - b
+    if (total > 0):
+        return total
+    else:
+        return -total
+def convulution_cyclopeptide_ping(spectrum,m,n):
+    masses = get_top_m_massese(spectrum,m)
+    
+
+def get_top_m_massese(spectrum,m):
+    spectrum = sorted(spectrum)
+    masses = {}
+    for i in range(len(spectrum)):
+        for j in range(i+1,len(spectrum)):
+            result = abs(spectrum[i],spectrum[j])
+            if(result <= 200 and result >= 57):
+                try:
+                    masses[result] +=1 
+                except KeyError:
+                    masses[result] = 1
+    masses = sorted(masses.items(),key=lambda x: x[1],reverse=True)
+    m_index =0
+    return_masses = []
+    prev_mass = 0
+    for i in range(len(masses)):
+        print(masses[i][1])
+        if(m_index < m):
+            return_masses.append(masses[i][0])
+        elif(masses[i][0] == prev_mass):
+            return_masses.append(masses[i][0])
+        else:
+            break
+        m_index += 1
+
+        prev_mass = masses[i][0]
+    return(return_masses)
+       
+
+
+def convultion_cyclopeptide_sequencing(spectrum,masses,N):
+    leader_peptide = [0]
+    leader_beard = [[0]]
+    j= 0
+    while(len(leader_beard) > 0):
+        expand_peptides=list(leader_beard)
+        leader_beard = []
+        for item in expand_peptides:
+            for mass in masses:
+                t_start_pep=list(item)
+                t_start_pep.append(mass)
+                leader_beard.append(t_start_pep)
+        for i, peptide in enumerate(list(leader_beard)):
+            peptide_cyclo_spectrum = get_cyclo_peptide_spectrum(peptide)
+#            if(72 in peptide_cyclo_spectrum):
+#                print(peptide)
+            if(peptide_cyclo_spectrum[len(peptide_cyclo_spectrum)-1] == spectrum[len(spectrum)-1]):
+                    leader_peptide = peptide
+            elif(peptide_cyclo_spectrum[len(peptide_cyclo_spectrum)-1] > spectrum[len(spectrum)-1]):
+                leader_beard.remove(peptide)
+        if(len(leader_beard) == 0):
+            break
+        leader_beard = cut(leader_beard,spectrum,N)
+        print(len(leader_beard))
+    print('-'.join([str(o) for o in leader_peptide[1:]]))
+
+def get_pairwie_positive(cyclo):
+    cyclo=sorted(cyclo)
+    print(cyclo)
+    sampling_list=[]
+    for i in range(len(cyclo)):
+        for j in range(i+1,len(cyclo)):
+            result = abs(cyclo[i],cyclo[j])
+            if(result != 0):
+                sampling_list.append(result)
+    return(' '.join([str(o) for o in sorted(sampling_list)]))
+     
+
+
+def get_spectral_convulution(spectrum):
+    generate_distances = get_pairwie_positive(cyclo_spec)
+    print(generate_distances)
+    
+
+def get_spectrum(input_spectrum):
+    return [int(o) for o in input_spectrum.split()]
+    
+
+
 
 def get_cyclo_peptide_spectrum(peptide):
     peptide = list(peptide)
