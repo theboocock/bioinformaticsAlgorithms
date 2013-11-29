@@ -26,7 +26,7 @@ int main(int argc, char *argv[]){
             cp = strdup(line);
             token = strtok(cp,delim);
             k = atoi(token);
-            token = strtok(cp,delim);
+            token = strtok(NULL,delim);
             d = atoi(token);
         }
         i++;

@@ -16,5 +16,6 @@ void  append(string_array,char *);
 int length(string_array);
 void free_array(string_array);
 char * get(string_array,int);
-
+void extend(string_array, string_array);
+void to_string(string_array);
 #endif
