@@ -2,24 +2,41 @@
 
 char dna_symbols[] = "ATCG";
 void motif_enumeration(string_array dna,string_array results, int k, int d){
-    int i,j,l;
+
+    int i,j,count,l,t;
     char * kmer = malloc((k+1) * sizeof *kmer);
     char * other_kmer = malloc((k+1) * sizeof *other_kmer);
-    //string_array temp;
-    for (i = 0; i < strlen(dna->items[0]) - k + 1; i++){
-        j = 0;
-        while(j < k){
-            kmer[j] = dna->items[0][i+j];
-            j++;
-        }
-        kmer[j] = '\0';
-        for(j =0; j <= d;j++){
-            extend(results,generate_mutations(kmer,d,k)); 
-            //printf("%d\n",results->length);
-        }  
+    string_array mutated = new_array();
+    for( t = 0; t < dna->length; t++){
+        for (i = 0; i < strlen(dna->items[k]) - k + 1; i++){
+            j = 0;
+            while(j < k){
+                kmer[j] = dna->items[t][i+j];
+                j++;
+            }
+            kmer[j] = '\0';
+            for(l=0; l <= d; l++){
+                extend(mutated,generate_mutations(kmer,l,k));
+            }
+    //        to_string(mutated);
+            for(l = 0; l < mutated->length; l++){ 
+                count = 0;
+                for(j =0; j < dna->length;j++){
+                        if(needle_in_haystack(get(mutated,l),get(dna,j),d,k)){
+                            count++;
+                        }
+                }
+                if(count == (dna->length)){
+                    unique_append(results,get(mutated,l));
+     //             to_string(results);
+                }
+            }
     }
+    }
+    to_string(results);
     free(other_kmer);
     free(kmer);
+    free_array(mutated);
     //to_string(results);
 }
 
@@ -27,33 +44,104 @@ int needle_in_haystack(char * needle,char * haystack,int d,int k){
     int i = 0;
     int mis = 0;
     int j;
-    for(i = 0; haystack[i] != '\0'; i++){
+    int len = strlen(haystack);
+    for(i = 0; len -k + 1 ; i++){
         j = 0;
-        if(haystack[i] == needle[j++]){
-            while(haystack[i+j] == needle[j]) j++;
+        while(j < k){ 
+            if(haystack[i+j] == needle[j]){
+                mis++;
+            }
+            j++;  
         }
-        if((j - d) >= k){
+        if((j+i) > len && mis < k){
+          //  printf("j = %s %s  \n",needle,haystack);
+            return 0;
+        }
+        if((mis + d ) >= k){
+           //printf("%s %d %s %d %d\n",needle,mis,haystack,j,len);
             return 1;
         }
+        mis = 0;
     }
     return 0;
 }
 
-string_array get_combinations(char **mismatches,int choose, int n){
-    int i;
-    char c[100];
-    string_array combinations = new_array();
-    for (i = 0; i < n; i++) c[i] = n - i;
-
+void get_product(char * kmer,string_array combinations,char** mismatches,int *pos,int n){
+    int i,j,k,l;
+    int *c;
+    char * temp_kmer = malloc((strlen(kmer)+1) * sizeof *kmer);
+    for(i = 0; kmer[i] != '\0';i++){
+        temp_kmer[i] = kmer[i];
+    }
+    temp_kmer[i] = '\0';
+    c = malloc(n * sizeof *c);
+    for(i = 0; i < n;i++) c[i] = 0;
+    i = n -1;
+    j  = 0;
+    
     while(1){
-        for( i = n;i--;)
-            printf("%d%c",c[i],i ? ' ' :'\n');
+        while(c[i] <3){
+            for(k=0; temp_kmer[k] != '\0';k++){
+                temp_kmer[k] = kmer[k];
+            }
+            //printf("%d pos k\n",pos[0]);
+            for(k=0;k<n;k++){
+             //   printf("%d ",c[k]);
+                temp_kmer[pos[k]] = mismatches[pos[k]][c[k]];
+            }
+            //printf("\n");
+            //printf("%s\n",temp_kmer);
+            append(combinations,temp_kmer);
+            c[i] +=1; 
+            //printf("c[i] = %d i = %d\n",c[i],i); 
+        }        
 
-        if(c[i]++ < choose) continue;
-        for (i = 0; c[i] >= choose - i;) if (++i >= n) return combinations;
-        for (c[i]++; i; i--) c[i-1] = c[i] + 1;
-    } 
-    free_array(combinations); 
+        if(c[0] == (3)) break;
+        //printf("j == %d\n",j);
+        //fflush(stdout);
+        if(c[i-j] == (3)){
+            j++;
+        }
+        c[i-j]++;
+        for(k = (i-j) + 1; k <= i; k++){
+            c[k] = c[k-1];
+        }
+    }
+    free(c);
+    free(temp_kmer);
+} 
+
+
+string_array get_combinations(char * kmer,char **mismatches,int choose, int n){
+    int i,j,k;
+    int *c;
+    c = malloc(choose* sizeof * c);
+    string_array combinations = new_array();
+    for (i = 0; i < choose; i++) c[i] = i;
+    i = choose -1;
+    j = 0;
+    //printf("choose = %d n = %d \n",choose,n);
+    while(1){
+        while(c[i] < (n)){
+            for(k=0; k < choose;k ++){
+      //          printf("%d ",c[k]);
+            }
+        //    printf("\n");
+            get_product(kmer,combinations,mismatches,c,choose);
+            c[i] += 1;
+        }
+        if(c[0] == (n - choose  + 1)){;
+            break;
+        }
+        if(c[i-j] == (n-j)){
+            j++;
+        }
+        c[i-j]++;
+        for(k = (i-j) + 1; k <= i; k++){
+            c[k] = c[k-1] + 1;
+            }
+        }
+    free(c);
     return(combinations); 
 }
 
@@ -63,7 +151,7 @@ string_array generate_mutations(char * kmer,int d,int k){
     char ** mismatches = malloc(k * sizeof *mismatches);
     int * positions = malloc(k * sizeof *positions);
     string_array mutated_combinations = new_array();
-    //printf("%s\n", kmer);
+    
     if(d == 0){
         append(mutated_combinations,kmer);
     }else{
@@ -81,13 +169,11 @@ string_array generate_mutations(char * kmer,int d,int k){
         }
         
         // generate all combinations of mismatches.    
-        mutated_combinations = get_combinations(mismatches,d,k);  
-        
+        extend(mutated_combinations,get_combinations(kmer,mismatches,d,k)); 
+        for (i = 0; i < k; i++){
+            free(mismatches[i]);
+        }
 
-    }
-    for (i = 0; i < k; i++){
-        free(mismatches[i]);
-        printf("blah");
     }
     free(mismatches);
     free(positions);

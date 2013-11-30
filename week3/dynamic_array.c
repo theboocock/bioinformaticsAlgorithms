@@ -51,11 +51,12 @@ void extend(string_array a, string_array b){
     nearest_power_two <<= 1;
     a->items = realloc(a->items,(nearest_power_two * sizeof *(a->items)));
     a->size = nearest_power_two;
+    //printf("%d %d\n",a->length + b->length,nearest_power_two);
     for (i = a->length; i < (a->length + b->length); i++){
         a->items[i] = b->items[i-a->length]; 
     }
     a->length += b->length;
-    printf("%d\n",a->length);
+    //printf("%d\n",a->length);
     if(a->items != b->items){
         free(b->items);
     }
@@ -71,3 +72,25 @@ void to_string(string_array a){
     }
 }
 
+void unique_append(string_array s,char * add){
+    int matches;
+    int i,j;
+    char *temp;
+    matches = 0;
+    for(i = 0; i < s->length ;i++){
+        matches = 0;
+       temp = s->items[i];
+       for(j = 0; temp[j] != '\0' && add[j] != '\0';j++){
+            if(temp[j] == add[j]){
+                matches ++;
+            }
+       }
+       if(matches == j ){
+            break;
+      }
+      
+    }    
+    if(matches != strlen(add)){
+    append(s,add);
+    }
+}
